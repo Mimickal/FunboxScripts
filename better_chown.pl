@@ -23,7 +23,7 @@ GetOptions(
 	'silent'      => \($Args{silent}),
 	'h|help'      => \&Usage,
 ) or die $!;
-$Args{path} = StripTrailingSlash($ARGV[0]);
+$Args{path} = $ARGV[0];
 
 if (!$Args{path}) {
 	die "Error: no path provided\n";
@@ -96,10 +96,5 @@ sub ChangePerms {
 	if (defined($perms)) {
 		chmod(oct($perms), $path);
 	}
-}
-
-sub StripTrailingSlash {
-	my ($val) = @_;
-	return (substr($val, -1) eq '/') ? substr($val, 0, -1) : $val;
 }
 
