@@ -27,7 +27,6 @@ GetOptions(
 
 if (!@ARGV) {
 	die "Error: no path provided\n";
-	Usage();
 }
 
 # Don't print warnings when outputting list of matched files
@@ -97,6 +96,7 @@ ex: $0 --user funbox --group curator --file-perm 0575 --dir-perm 0464 /home/funb
   --mock       Don't actually change anything. Just print matched files.
   -h --help    Show this text.
 ));
+exit(0);
 }
 
 sub ChangePerms {
