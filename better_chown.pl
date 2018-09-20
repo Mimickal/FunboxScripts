@@ -21,6 +21,7 @@ GetOptions(
 	'dir-perm:s'  => \($Args{dirperm}),
 	'exclude:s'   => \($Args{exclude}),
 	'silent'      => \($Args{silent}),
+	'mock'        => \($Args{mock}),
 	'h|help'      => \&Usage,
 ) or die $!;
 
@@ -29,7 +30,16 @@ if (!@ARGV) {
 	Usage();
 }
 
-if (!$Args{user} && !$Args{group} && !$Args{dirperm} && !$Args{fileperm}) {
+# Don't print warnings when outputting list of matched files
+$Args{silent} = 1 if $Args{mock};
+
+if (
+	!$Args{mock} &&
+	!$Args{user} &&
+	!$Args{group} &&
+	!$Args{dirperm} &&
+	!$Args{fileperm}
+) {
 	die "Nothing to do because no options specified. Exiting.\n";
 }
 
@@ -84,12 +94,18 @@ ex: $0 --user funbox --group curator --file-perm 0575 --dir-perm 0464 /home/funb
   --dir-perm   Permissions to apply to directories (ex: 755).
   --exclude    A comma-separated list of files / sub-directories to exclude.
   --silent     Don't output warning or info text.
+  --mock       Don't actually change anything. Just print matched files.
   -h --help    Show this text.
 ));
 }
 
 sub ChangePerms {
 	my ($path, $perms) = @_;
+
+	if ($Args{mock}) {
+		print("$path\n");
+		return;
+	}
 
 	# Don't change user / group value if they weren't specified
 	my $uid = (defined $Args{user}) ? getpwnam($Args{user}) : -1;
