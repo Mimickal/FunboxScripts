@@ -23,9 +23,8 @@ GetOptions(
 	'silent'      => \($Args{silent}),
 	'h|help'      => \&Usage,
 ) or die $!;
-$Args{path} = $ARGV[0];
 
-if (!$Args{path}) {
+if (!@ARGV) {
 	die "Error: no path provided\n";
 	Usage();
 }
@@ -38,17 +37,20 @@ if (!$Args{silent} && $> != 0) {
 	warn "Not running as root. Script likely won't work.\n";
 }
 
-if (-f $Args{path}) {
-	ChangePerms($Args{path}, $Args{fileperm});
+if (scalar(@ARGV) == 1 && -f $ARGV[0]) {
+	ChangePerms($ARGV[0], $Args{fileperm});
 } else {
 	# Build lookup table of items to exclude
 	my %exclude =
 		map { $_ => 1 }
-		map { File::Find::Rule->in("$Args{path}/$_") }
+		map { File::Find::Rule->in(glob($_)) }
 		split(/,/, $Args{exclude});
 
 	# Filter excluded files out of all files in the given directory
-	my @files = grep { not $exclude{$_} } File::Find::Rule->in($Args{path});
+	my @files =
+		grep { not $exclude{$_} }
+		map { File::Find::Rule->in($_) }
+		@ARGV;
 
 	printf(
 		"Changing permissions for %d file(s) (ignoring %d)...\n",
@@ -72,6 +74,7 @@ print(qq(Usage: $0 [options] <parent path>
 
 Recursively change the owner, group, and permissions
 of files and directories under the given path.
+The path may also be provided as a glob.
 
 ex: $0 --user funbox --group curator --file-perm 0575 --dir-perm 0464 /home/funbox/
 
