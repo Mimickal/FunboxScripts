@@ -15,8 +15,6 @@ use File::Basename qw( basename dirname );
 use File::Glob qw( bsd_glob );
 use IPC::Run3 qw( run3 );
 
-my ($GivenPath) = @ARGV;
-
 sub convertFile {
 	my ($path) = @_;
 
@@ -34,13 +32,15 @@ sub convertFile {
 	]);
 }
 
-if (-f $GivenPath) {
-	convertFile($GivenPath);
-}
-elsif (-d $GivenPath) {
-	for my $path (bsd_glob("$GivenPath/*.mkv")) {
-		if (!-d $path) {
-			convertFile($path);
+for my $path (@ARGV) {
+	if (-f $path) {
+		convertFile($path);
+	}
+	elsif (-d $path) {
+		for my $path (bsd_glob("$path/*.mkv")) {
+			if (!-d $path) {
+				convertFile($path);
+			}
 		}
 	}
 }
