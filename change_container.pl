@@ -19,26 +19,56 @@ no warnings 'uninitialized';
 
 use File::Basename qw( fileparse );
 use File::Glob qw( bsd_glob );
+use Getopt::Long;
 use IPC::Run3 qw( run3 );
 
-# TODO quiet mode (don't output all the ffmpeg nonsense)
-# TODO verbose ffmpeg output
+# TODO actually implement log levels for ffmpeg subprocesses
+# TODO actually implement progress
+# TODO legit usage string (also cleanup die calls). Pod2Usage?
 # TODO mock mode - just output matched media files without converting
 # TODO verify multiple audio tracks are preserved and converted
+# TODO move subs to bottom (also capitalize names)
+
+use constant LOG_LEVELS => {
+	none => 0,     # No output at all
+	info => 1,     # Only output conversions and skipped files
+	progress => 2, # Output conversions with progress bar (default)
+	debug => 3,    # Display ffmpeg output
+};
+
+my %Args;
+GetOptions(
+	'l|log-level:s' => \($Args{log_level} = 'progress'),
+) or die $!;
+
+my $LogLevel = LOG_LEVELS->{$Args{log_level}};
+
+unless (defined $LogLevel) {
+	my @levels = keys %{LOG_LEVELS()};
+	die "Invalid log level [$Args{log_level}]. Valid levels are [@levels].";
+}
+
+sub Log {
+	my ($msg) = @_;
+	if ($LogLevel >= LOG_LEVELS->{info}) {
+		print("$msg\n");
+	}
+}
 
 sub convertFile {
 	my ($path) = @_;
 
 	my $format = getCodec($path);
 	unless ($format) {
-		print("$path - Skipping, not a media file\n");
+		Log("$path - Skipping, not a media file");
 		return;
 	}
 
 	my $vidcodec = $format eq 'h264' ? 'copy' : 'libx264';
 	my ($basename, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
 
-	print("Converting: $path\n");
+	Log("Converting: $path\n");
+
 	run3([
 		'ffmpeg',
 		'-i', "$dir/$basename$suffix",
