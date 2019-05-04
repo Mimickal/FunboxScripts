@@ -1,18 +1,4 @@
 #!/usr/bin/perl
-################################################################################
-# Converts a media files to the Funbox Watch format.
-#     Container  mp4
-#     Encoding   h.264
-#     Audio      aac
-#
-# Videos already encoded with h.264 (typically .mkv files) will simply have
-# their video container changed without re-encoding the video.
-#
-# Multiple audio tracks will be preserved (but Watch will only play the first).
-#
-# Subtitle tracks will be preserved.
-#
-################################################################################
 use strict;
 use warnings;
 no warnings 'uninitialized';
@@ -24,28 +10,50 @@ use IPC::Run3 qw( run3 );
 
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
-# TODO legit usage string (also cleanup die calls). Pod2Usage?
 # TODO verify multiple audio tracks are preserved and converted
 # TODO ctrl+c handler (currently subshells eat it)
 
+use constant INFO => qq{
+Converts a media files to the Funbox Watch format.
+    Container  mp4
+    Encoding   h.264
+    Audio      aac
+
+Videos already encoded with h.264 (typically .mkv files) will simply have
+their video container changed without re-encoding the video.
+Multiple audio tracks will be preserved (but Watch will only play the first).
+Subtitle tracks will be preserved.
+};
+
+use constant OPTIONS => qq{
+Options:
+  -h --help       Outputs this help text.
+  -m --mock       Output operations without actually running the conversion.
+  -l --log-level  Sets the output level. Valid options:
+                      none      Output nothing at all
+                      info      Output operations only (useful for cron jobs)
+                      progress  (Default) Output operations with progress bar
+                      debug     Output full info from ffmpeg
+};
+
 use constant LOG_LEVELS => {
-	none => 0,     # No output at all
-	info => 1,     # Only output conversions and skipped files
-	progress => 2, # Output conversions with progress bar (default)
-	debug => 3,    # Display ffmpeg output
+	none => 0,
+	info => 1,
+	progress => 2,
+	debug => 3,
 };
 
 my %Args;
 GetOptions(
 	'l|log-level:s' => \($Args{log_level} = 'progress'),
 	'm|mock'        => \($Args{mock}),
-) or die $!;
+	'h|help'        => sub { Usage(); },
+) or die Usage($!);
 
 my $LogLevel = LOG_LEVELS->{$Args{log_level}};
 
 unless (defined $LogLevel) {
-	my @levels = keys %{LOG_LEVELS()};
-	die "Invalid log level [$Args{log_level}]. Valid levels are [@levels].";
+	Usage("Invalid log level [$Args{log_level}]");
 }
 
 for my $path (@ARGV) {
@@ -111,3 +119,20 @@ sub GetCodec {
 	return $out;
 }
 
+sub Usage {
+	my ($msg) = @_;
+	my ($scriptname) = fileparse($0);
+
+	my $output = qq{$msg
+Usage:
+    $scriptname path/to/media
+};
+
+	$output .= OPTIONS;
+	$output .= INFO;
+
+	print ($output);
+
+	# Exit with status code 1 if $msg is provided. Assume this means error.
+	exit(!!$msg);
+}
