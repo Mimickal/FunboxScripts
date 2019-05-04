@@ -27,7 +27,6 @@ use IPC::Run3 qw( run3 );
 # TODO legit usage string (also cleanup die calls). Pod2Usage?
 # TODO mock mode - just output matched media files without converting
 # TODO verify multiple audio tracks are preserved and converted
-# TODO move subs to bottom (also capitalize names)
 
 use constant LOG_LEVELS => {
 	none => 0,     # No output at all
@@ -48,6 +47,19 @@ unless (defined $LogLevel) {
 	die "Invalid log level [$Args{log_level}]. Valid levels are [@levels].";
 }
 
+for my $path (@ARGV) {
+	if (-f $path) {
+		ConvertFile($path);
+	}
+	elsif (-d $path) {
+		for my $path (bsd_glob("$path/*")) {
+			if (!-d $path) {
+				ConvertFile($path);
+			}
+		}
+	}
+}
+
 sub Log {
 	my ($msg) = @_;
 	if ($LogLevel >= LOG_LEVELS->{info}) {
@@ -55,10 +67,10 @@ sub Log {
 	}
 }
 
-sub convertFile {
+sub ConvertFile {
 	my ($path) = @_;
 
-	my $format = getCodec($path);
+	my $format = GetCodec($path);
 	unless ($format) {
 		Log("$path - Skipping, not a media file");
 		return;
@@ -80,7 +92,7 @@ sub convertFile {
 	]);
 }
 
-sub getCodec {
+sub GetCodec {
 	my ($path) = @_;
 
 	run3([
@@ -96,18 +108,5 @@ sub getCodec {
 
 	chomp $out;
 	return $out;
-}
-
-for my $path (@ARGV) {
-	if (-f $path) {
-		convertFile($path);
-	}
-	elsif (-d $path) {
-		for my $path (bsd_glob("$path/*")) {
-			if (!-d $path) {
-				convertFile($path);
-			}
-		}
-	}
 }
 
