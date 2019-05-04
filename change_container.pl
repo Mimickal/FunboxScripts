@@ -23,13 +23,19 @@ use IPC::Run3 qw( run3 );
 
 # TODO quiet mode (don't output all the ffmpeg nonsense)
 # TODO verbose ffmpeg output
-# TODO skip non-media files
 # TODO mock mode - just output matched media files without converting
+# TODO verify multiple audio tracks are preserved and converted
 
 sub convertFile {
 	my ($path) = @_;
 
-	my $vidcodec = getCodec($path) eq 'h264' ? 'copy' : 'libx264';
+	my $format = getCodec($path);
+	unless ($format) {
+		print("$path - Skipping, not a media file\n");
+		return;
+	}
+
+	my $vidcodec = $format eq 'h264' ? 'copy' : 'libx264';
 	my ($basename, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
 
 	print("Converting: $path\n");
@@ -47,7 +53,6 @@ sub convertFile {
 sub getCodec {
 	my ($path) = @_;
 
-	# TODO this can fail sometimes. Wrap in try/catch
 	run3([
 		'ffprobe',
 		'-v', 'error',
@@ -57,7 +62,7 @@ sub getCodec {
 		'-of',
 		'default=noprint_wrappers=1:nokey=1',
 		$path
-	], \undef, \(my $out));
+	], \undef, \(my $out), \undef);
 
 	chomp $out;
 	return $out;
