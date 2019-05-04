@@ -25,8 +25,8 @@ use IPC::Run3 qw( run3 );
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
 # TODO legit usage string (also cleanup die calls). Pod2Usage?
-# TODO mock mode - just output matched media files without converting
 # TODO verify multiple audio tracks are preserved and converted
+# TODO ctrl+c handler (currently subshells eat it)
 
 use constant LOG_LEVELS => {
 	none => 0,     # No output at all
@@ -38,6 +38,7 @@ use constant LOG_LEVELS => {
 my %Args;
 GetOptions(
 	'l|log-level:s' => \($Args{log_level} = 'progress'),
+	'm|mock'        => \($Args{mock}),
 ) or die $!;
 
 my $LogLevel = LOG_LEVELS->{$Args{log_level}};
@@ -79,7 +80,7 @@ sub ConvertFile {
 	my $vidcodec = $format eq 'h264' ? 'copy' : 'libx264';
 	my ($basename, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
 
-	Log("Converting: $path\n");
+	Log("Converting: $path");
 
 	run3([
 		'ffmpeg',
@@ -89,7 +90,7 @@ sub ConvertFile {
 		'-c:a', 'aac',
 		'-c:s', 'mov_text',
 		'-f', 'mp4', "$dir/$basename.mp4"
-	]);
+	]) unless ($Args{mock});
 }
 
 sub GetCodec {
