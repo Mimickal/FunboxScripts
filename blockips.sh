@@ -2,13 +2,15 @@
 #################################################
 # Donut Feb 03, 2016
 #
-# Sets up iptables rules to completely block 
+# Sets up iptables rules to completely block
 # traffic from any ip listed in the files in
 # the BLOCKDIR directory
 #
 # Because we're really fucking sick of 20,000+
 # daily hacking attempts from China
 ################################################
+
+VERSION=1
 
 BLOCKDIR='/etc/blocked-ips'
 LISTNAME='blocked-ips'
@@ -46,3 +48,4 @@ iptables -I OUTPUT -j $LISTNAME
 iptables -I FORWARD -j $LISTNAME
 
 exit 0;
+

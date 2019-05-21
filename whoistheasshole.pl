@@ -4,6 +4,8 @@ use strict;
 use warnings;
 no warnings 'uninitialized';
 
+our $VERSION = '1.0';
+
 # Get user and cpu usage percentage for every process
 my @processlines = `ps ax -o user,%cpu`;
 

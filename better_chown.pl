@@ -10,6 +10,8 @@ use strict;
 use warnings;
 no warnings 'uninitialized';
 
+our $VERSION = '1.0';
+
 use File::Find::Rule;
 use Getopt::Long;
 
@@ -22,6 +24,7 @@ GetOptions(
 	'exclude:s'   => \($Args{exclude}),
 	'silent'      => \($Args{silent}),
 	'mock'        => \($Args{mock}),
+	'v|version'   => sub { print("Version $VERSION\n"); exit(0); },
 	'h|help'      => \&Usage,
 ) or die $!;
 

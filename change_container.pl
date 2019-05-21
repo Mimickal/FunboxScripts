@@ -8,6 +8,8 @@ use File::Glob qw( bsd_glob );
 use Getopt::Long;
 use IPC::Run3 qw( run3 );
 
+our $VERSION = '2.0';
+
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
 # TODO verify multiple audio tracks are preserved and converted
@@ -47,6 +49,7 @@ my %Args;
 GetOptions(
 	'l|log-level:s' => \($Args{log_level} = 'progress'),
 	'm|mock'        => \($Args{mock}),
+	'v|version'     => sub { print("Version $VERSION\n"); exit(0); },
 	'h|help'        => sub { Usage(); },
 ) or die Usage($!);
 
