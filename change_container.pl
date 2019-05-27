@@ -8,7 +8,7 @@ use File::Glob qw( bsd_glob );
 use Getopt::Long;
 use IPC::Run3 qw( run3 );
 
-our $VERSION = '2.0';
+our $VERSION = '2.1';
 
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
@@ -93,14 +93,21 @@ sub ConvertFile {
 
 	Log("Converting: $path");
 
+	my $input = "$dir/$basename$suffix";
+	my $output = "$dir/$basename.mp4";
+	if ($input eq $output) {
+		Log("Output path matches input path. Appending .conv to output name");
+		$output .= ".conv";
+	}
+
 	run3([
 		'ffmpeg',
-		'-i', "$dir/$basename$suffix",
+		'-i', $input,
 		'-c:v', $vidcodec,
 		'-map', '0',
 		'-c:a', 'aac',
 		'-c:s', 'mov_text',
-		'-f', 'mp4', "$dir/$basename.mp4"
+		'-f', 'mp4', $output
 	]) unless ($Args{mock});
 }
 
