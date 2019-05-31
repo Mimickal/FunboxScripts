@@ -8,7 +8,7 @@ use File::Glob qw( bsd_glob );
 use Getopt::Long;
 use IPC::Run3 qw( run3 );
 
-our $VERSION = '2.1';
+our $VERSION = '2.2';
 
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
@@ -24,13 +24,16 @@ Converts a media files to the Funbox Watch format.
 Videos already encoded with h.264 (typically .mkv files) will simply have
 their video container changed without re-encoding the video.
 Multiple audio tracks will be preserved (but Watch will only play the first).
-Subtitle tracks will be preserved.
+Subtitle tracks will be preserved. The output file has .conv appended to the
+name if it would otherwise overwrite the input file.
 };
 
 use constant OPTIONS => qq{
 Options:
   -h --help       Outputs this help text.
   -m --mock       Output operations without actually running the conversion.
+  -o --out-dir    Specifies a separate output directory. Defaults to the same
+                  directory as the source file.
   -l --log-level  Sets the output level. Valid options:
                       none      Output nothing at all
                       info      Output operations only (useful for cron jobs)
@@ -49,6 +52,7 @@ my %Args;
 GetOptions(
 	'l|log-level:s' => \($Args{log_level} = 'progress'),
 	'm|mock'        => \($Args{mock}),
+	'o|out-dir:s'   => \($Args{out_dir}),
 	'v|version'     => sub { print("Version $VERSION\n"); exit(0); },
 	'h|help'        => sub { Usage(); },
 ) or die Usage($!);
@@ -94,7 +98,9 @@ sub ConvertFile {
 	Log("Converting: $path");
 
 	my $input = "$dir/$basename$suffix";
-	my $output = "$dir/$basename.mp4";
+	my $output = $Args{out_dir} // $dir;
+	$output .= "/$basename.mp4";
+
 	if ($input eq $output) {
 		Log("Output path matches input path. Appending .conv to output name");
 		$output .= ".conv";
