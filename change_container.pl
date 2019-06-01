@@ -8,12 +8,16 @@ use File::Glob qw( bsd_glob );
 use Getopt::Long;
 use IPC::Run3 qw( run3 );
 
-our $VERSION = '2.2';
+our $VERSION = '2.3';
 
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
 # TODO verify multiple audio tracks are preserved and converted
 # TODO ctrl+c handler (currently subshells eat it)
+# TODO Let bash do the expansion work. Currently we glob in this script
+# TODO detect if something is already right resolution, mp4 h264 aac and skip if so
+# TODO How do we handle 5.1 surround sound stuff?
+
 
 use constant INFO => qq{
 Converts a media files to the Funbox Watch format.
@@ -34,6 +38,11 @@ Options:
   -m --mock       Output operations without actually running the conversion.
   -o --out-dir    Specifies a separate output directory. Defaults to the same
                   directory as the source file.
+  -s --scale      Scale the output resolution. For example, if "720p" is given
+                  for a 1920x1080 video, the script will set the output height
+                  to 720 and auto-determine the height to maintain aspect ratio.
+                  You should verify the input file's resolution with ffprobe
+                  before using this to avoid fucking things up.
   -l --log-level  Sets the output level. Valid options:
                       none      Output nothing at all
                       info      Output operations only (useful for cron jobs)
@@ -53,6 +62,7 @@ GetOptions(
 	'l|log-level:s' => \($Args{log_level} = 'progress'),
 	'm|mock'        => \($Args{mock}),
 	'o|out-dir:s'   => \($Args{out_dir}),
+	's|scale:s'     => \($Args{scale}),
 	'v|version'     => sub { print("Version $VERSION\n"); exit(0); },
 	'h|help'        => sub { Usage(); },
 ) or die Usage($!);
@@ -61,6 +71,17 @@ my $LogLevel = LOG_LEVELS->{$Args{log_level}};
 
 unless (defined $LogLevel) {
 	Usage("Invalid log level [$Args{log_level}]");
+}
+
+my @ScaleArgs;
+if ($Args{scale}) {
+	my ($height) = ($Args{scale} =~ /(\d+)[pP]/);
+	unless (defined($height)) {
+		Log("Invalid scale value [$Args{scale}]");
+		exit(1);
+	}
+	# Using -1 makes ffmpeg calculate width based on height and aspect ratio
+	@ScaleArgs = ('-filter:v', qq(scale=-1:$height));
 }
 
 for my $path (@ARGV) {
@@ -92,7 +113,7 @@ sub ConvertFile {
 		return;
 	}
 
-	my $vidcodec = $format eq 'h264' ? 'copy' : 'libx264';
+	my $vidcodec = ($format eq 'h264' && ! @ScaleArgs) ? 'copy' : 'libx264';
 	my ($basename, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
 
 	Log("Converting: $path");
@@ -111,9 +132,10 @@ sub ConvertFile {
 		'-i', $input,
 		'-c:v', $vidcodec,
 		'-map', '0',
+		@ScaleArgs,
 		'-c:a', 'aac',
 		'-c:s', 'mov_text',
-		'-f', 'mp4', $output
+		'-f', 'mp4', $output,
 	]) unless ($Args{mock});
 }
 
