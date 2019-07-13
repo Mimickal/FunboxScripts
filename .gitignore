@@ -1,0 +1,9 @@
+# Ignore everything
+*
+
+# Except these
+!.gitignore
+!*.sh
+!*.pl
+!*.py
+
