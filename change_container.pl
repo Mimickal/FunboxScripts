@@ -14,7 +14,6 @@ our $VERSION = '2.4';
 # TODO actually implement progress
 # TODO verify multiple audio tracks are preserved and converted
 # TODO ctrl+c handler (currently subshells eat it)
-# TODO detect if something is already right resolution, mp4 h264 aac and skip if so
 # TODO How do we handle 5.1 surround sound stuff?
 
 
@@ -106,6 +105,8 @@ sub Log {
 sub ConvertFile {
 	my ($path) = @_;
 
+	my ($basename, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
+
 	my $vformat = GetCodec($path, 'v:0');
 	my $aformat = GetCodec($path, 'a:0');
 
@@ -117,7 +118,10 @@ sub ConvertFile {
 	my $vidcodec = ($vformat eq 'h264' && ! @ScaleArgs) ? 'copy' : 'libx264';
 	my $audcodec = ($aformat eq 'aac') ? 'copy' : 'aac';
 
-	my ($basename, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
+	if ($vidcodec eq 'copy' && $audcodec eq 'copy' && $suffix eq '.mp4') {
+		Log("$path - Skipping, already in proper format");
+		return;
+	}
 
 	Log("Converting: $path");
 
