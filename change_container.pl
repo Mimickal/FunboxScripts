@@ -8,13 +8,12 @@ use File::Glob qw( bsd_glob );
 use Getopt::Long;
 use IPC::Run3 qw( run3 );
 
-our $VERSION = '2.3';
+our $VERSION = '2.4';
 
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
 # TODO verify multiple audio tracks are preserved and converted
 # TODO ctrl+c handler (currently subshells eat it)
-# TODO Let bash do the expansion work. Currently we glob in this script
 # TODO detect if something is already right resolution, mp4 h264 aac and skip if so
 # TODO How do we handle 5.1 surround sound stuff?
 
@@ -107,13 +106,17 @@ sub Log {
 sub ConvertFile {
 	my ($path) = @_;
 
-	my $format = GetCodec($path);
-	unless ($format) {
+	my $vformat = GetCodec($path, 'v:0');
+	my $aformat = GetCodec($path, 'a:0');
+
+	unless ($vformat) {
 		Log("$path - Skipping, not a media file");
 		return;
 	}
 
-	my $vidcodec = ($format eq 'h264' && ! @ScaleArgs) ? 'copy' : 'libx264';
+	my $vidcodec = ($vformat eq 'h264' && ! @ScaleArgs) ? 'copy' : 'libx264';
+	my $audcodec = ($aformat eq 'aac') ? 'copy' : 'aac';
+
 	my ($basename, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
 
 	Log("Converting: $path");
@@ -133,19 +136,20 @@ sub ConvertFile {
 		'-c:v', $vidcodec,
 		'-map', '0',
 		@ScaleArgs,
-		'-c:a', 'aac',
+		'-c:a', $audcodec,
 		'-c:s', 'mov_text',
 		'-f', 'mp4', $output,
 	]) unless ($Args{mock});
 }
 
+# Stream is something like 'v:0' or 'a:0'
 sub GetCodec {
-	my ($path) = @_;
+	my ($path, $stream) = @_;
 
 	run3([
 		'ffprobe',
 		'-v', 'error',
-		'-select_streams', 'v:0',
+		'-select_streams', $stream,
 		'-show_entries',
 		'stream=codec_name',
 		'-of',
