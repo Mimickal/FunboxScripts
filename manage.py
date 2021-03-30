@@ -10,7 +10,7 @@ from glob        import glob
 from time        import sleep
 from time        import time as now
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 
 API_KEY = open('apikey', 'r').read().rstrip()
 LOG_NAME = 'watch_manage.log'
@@ -100,10 +100,10 @@ for path in unmatched_media:
 		req2 = get(url + '&plot=full', timeout=5)
 	except RequestException:
 		# OMDB isn't working for some reason, so we'll try again next time.
-		warn('OMDB error while looking up %s. Skipping...' % title)
+		warn('OMDB error while looking up %s (%s). Skipping...' % (title, year))
 		continue
 	except Exception as e:
-		warn('Something went wrong, skipping... ' + e)
+		warn('Something went wrong, skipping... ' + str(e))
 		continue
 
 	# Create a limited record if OMDB doesn't have an entry.
@@ -112,7 +112,7 @@ for path in unmatched_media:
 	if req1.json().get('Error'):
 		# Create the record with OMDB fields nulled
 		info = {}
-		warn('No OMDB entry found for %s' % title)
+		warn('No OMDB entry found for %s (%s)' % (title, year))
 	else:
 		info = req1.json()
 		info['Fullplot'] = req2.json()['Plot']
@@ -166,7 +166,7 @@ for path in unmatched_media:
 		int(now())
 	))
 
-	log('Added <%s> <%s> with imdbID %s' % (title, year, info.get('imdbID')))
+	log('Added %s (%s) with imdbID %s' % (title, year, info.get('imdbID')))
 	sleep(1) # Delay so we don't flood OMDB with requests
 
 db_conn.commit()
