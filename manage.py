@@ -1,6 +1,7 @@
 # Let's just import EVERYTHING!
 import sqlite3
 from requests    import get
+from requests.utils import quote as urlencode
 from requests.exceptions import RequestException
 import re
 from unicodedata import normalize
@@ -10,7 +11,7 @@ from glob        import glob
 from time        import sleep
 from time        import time as now
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 
 API_KEY = open('apikey', 'r').read().rstrip()
 LOG_NAME = 'watch_manage.log'
@@ -91,16 +92,18 @@ for path in unmatched_media:
 		warn('%s is formatted wrong. Skipping.' % path)
 		continue
 
-	url = OMDB_URL % (API_KEY, title, year)
+	url = OMDB_URL % (API_KEY, urlencode(title), year)
+	log('Fetching ' + url)
 
 	try:
 		# We need to make a second request to get the long version of the plot.
 		# Don't ask me why, that's just how OMDB is.
 		req1 = get(url, timeout=5)
 		req2 = get(url + '&plot=full', timeout=5)
-	except RequestException:
+	except RequestException as e:
 		# OMDB isn't working for some reason, so we'll try again next time.
-		warn('OMDB error while looking up %s (%s). Skipping...' % (title, year))
+		warn('OMDB error while looking up %s (%s). Skipping...\n\t %s'
+			% (title, year, str(e)))
 		continue
 	except Exception as e:
 		warn('Something went wrong, skipping... ' + str(e))
