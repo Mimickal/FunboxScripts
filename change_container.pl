@@ -8,13 +8,18 @@ use File::Glob qw( bsd_glob );
 use Getopt::Long;
 use IPC::Run3 qw( run3 );
 
-our $VERSION = '2.4';
+our $VERSION = '2.5';
 
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
-# TODO verify multiple audio tracks are preserved and converted
 # TODO ctrl+c handler (currently subshells eat it)
 # TODO How do we handle 5.1 surround sound stuff?
+# TODO handle files with colons in the name. Regex for : in name, then prefix
+# name with "file:"
+# TODO Check return code from run3 so if ffmpeg fails, we don't exit
+# successfully
+# TODO instead of appending .conv, move the old file into an ./old/ directory
+# TODO embed srt files into converted media
 
 
 use constant INFO => qq{
@@ -22,12 +27,15 @@ Converts a media files to the Funbox Watch format.
     Container  mp4
     Encoding   h.264
     Audio      aac
+    Subtitles  mov_text (if text, copy otherwise)
 
 Videos already encoded with h.264 (typically .mkv files) will simply have
 their video container changed without re-encoding the video.
 Multiple audio tracks will be preserved (but Watch will only play the first).
-Subtitle tracks will be preserved. The output file has .conv appended to the
-name if it would otherwise overwrite the input file.
+Subtitle tracks will be converted to mov_text if they are text-based, and
+preserved if they are image-based. Attachments will be preserved. The output
+file has .conv appended to the name if it would otherwise overwrite the input
+file.
 };
 
 use constant OPTIONS => qq{
@@ -109,6 +117,7 @@ sub ConvertFile {
 
 	my $vformat = GetCodec($path, 'v:0');
 	my $aformat = GetCodec($path, 'a:0');
+	my $sformat = GetCodec($path, 's:0');
 
 	unless ($vformat) {
 		Log("$path - Skipping, not a media file");
@@ -117,8 +126,22 @@ sub ConvertFile {
 
 	my $vidcodec = ($vformat eq 'h264' && ! @ScaleArgs) ? 'copy' : 'libx264';
 	my $audcodec = ($aformat eq 'aac') ? 'copy' : 'aac';
+	my $subcodec = (
+		# Manually determined from https://stackoverflow.com/a/64500869/7954860
+		grep { $_ eq $sformat } qw(
+			dvd_subtitle
+			dvb_subtitle
+			hdmv_pgs_subtitle
+			xsub
+		)
+	) ? 'copy' : 'mov_text';
 
-	if ($vidcodec eq 'copy' && $audcodec eq 'copy' && $suffix eq '.mp4') {
+	if (
+		$vidcodec eq 'copy' &&
+		$audcodec eq 'copy' &&
+		$subcodec eq 'copy' &&
+		$suffix eq '.mp4'
+	) {
 		Log("$path - Skipping, already in proper format");
 		return;
 	}
@@ -141,7 +164,8 @@ sub ConvertFile {
 		'-map', '0',
 		@ScaleArgs,
 		'-c:a', $audcodec,
-		'-c:s', 'mov_text',
+		'-c:s', $subcodec,
+		'-c:t', 'copy',
 		'-f', 'mp4', $output,
 	]) unless ($Args{mock});
 }
