@@ -19,7 +19,7 @@ use constant OPTIONS => qq(
 Options:
   -b --bar      Display progress bar in addition to percent. Useful in
                 combination with "watch".
-  -d --drives   Comma-separated list of disks to get test progress for.
+  -d --disks    Comma-separated list of disks to get test progress for.
                 If not provided, checks all disks.
   -h --help     Outputs this help text and exits.
   -v --version  Outputs script version and exits.
