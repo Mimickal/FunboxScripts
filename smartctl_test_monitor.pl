@@ -1,15 +1,19 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+no warnings 'uninitialized';
 
 use English;
 use Getopt::Long qw( GetOptions );
 use JSON::PP qw( decode_json );
-use List::Util qw( any );
+use List::Util qw( any first );
 
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
 use constant INFO => qq(Outputs smartctl test progress for selected drives.
+
+For fine-grained reporting, start your test like this:
+smartctl --test select,0-max
 
 NOTE: Disk tests can take a long time. If pairing this script with "watch", use
       a reasonably long polling interval for the type of test you're watching.
@@ -66,27 +70,37 @@ if ($Args{disks}) {
 
 # Check the disks
 for my $disk (@checked_disks) {
-	my $percent = getTestProgress($disk);
+	my $progress = getTestProgress($disk);
 
 	print("$disk\t");
+
+	unless (defined $progress) {
+		print("Complete / Not running\n");
+		next;
+	}
+
+	my ($cur, $max) = @$progress{qw( CUR MAX )};
+
 	if ($Args{bar}) {
-		print(makeProgressBar($percent));
+		print(makeProgressBar($cur, $max));
 		print(' ');
 	}
-	if (defined $percent) {
-		print("$percent%");
+
+	if (defined $max) {
+		my $percent = int($cur / $max * 100);
+		print("$percent%\t($cur / $max)");
 	} else {
-		print("Complete / Not running");
+		print("$cur%");
 	}
 	print("\n");
 }
 
 sub makeProgressBar {
-	my ($percent) = @_;
-	$percent //= 0;
+	my ($cur, $max) = @_;
+	$max //= 100;
 
 	my $bar_len = 40;
-	my $filled = int($percent * $bar_len / 100);
+	my $filled = int($cur / $max * $bar_len);
 
 	my $bar = '[';
 	$bar .= '=' x $filled;
@@ -99,18 +113,37 @@ sub getTestProgress {
 	my ($disk) = @_;
 
 	# IPC::Run3 might be safer here. Possible command injection otherwise.
-	my $disk_json = qx(smartctl --capabilities --json $disk);
+	# FIXME smartctl can hang sometimes, which we should catch
+
+	# First, let's try to get fine-grained progress
+	my $disk_json = qx(smartctl --log selective --json $disk);
 	my $disk_info = decode_json($disk_json);
 
-	# We'll always get this output
+	my $test_table = $disk_info->{ata_smart_selective_self_test_log}->{table};
+	my $in_progress_test = first {
+		$_->{status}->{string} eq 'Self_test_in_progress'
+	} @$test_table;
+
+	if (defined $in_progress_test) {
+		return {
+			MAX => $in_progress_test->{lba_max},
+			CUR => $in_progress_test->{current_lba_min},
+		};
+	}
+
+	# If that didn't work, fall back on coarse test percentage
+	$disk_json = qx(smartctl --capabilities --json $disk);
+	$disk_info = decode_json($disk_json);
 	my $status = $disk_info->{ata_smart_data}->{self_test}->{status};
 
-	# This part changes based on test completion
 	if (exists $status->{remaining_percent}) {
-		return 100 - $status->{remaining_percent};
-	} else {
-		return undef;
+		return {
+			CUR => 100 - $status->{remaining_percent},
+		};
 	}
+
+	# Test probably isn't running, or we suck at reading progress
+	return undef;
 }
 
 sub usage {
