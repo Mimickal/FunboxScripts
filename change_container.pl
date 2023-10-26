@@ -8,7 +8,7 @@ use File::Glob qw( bsd_glob );
 use Getopt::Long;
 use IPC::Run3 qw( run3 );
 
-our $VERSION = '2.5';
+our $VERSION = '2.6';
 
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
@@ -54,6 +54,9 @@ Options:
                       info      Output operations only (useful for cron jobs)
                       progress  (Default) Output operations with progress bar
                       debug     Output full info from ffmpeg
+     --ignore     Ignore the given tracks. Format: <id1>[,<id2>,<id3>...]
+     --override   Override tracks instead of using defaults.
+                  Format <track id>=<format>,[<track id>=<format>].
 };
 
 use constant LOG_LEVELS => {
@@ -65,6 +68,8 @@ use constant LOG_LEVELS => {
 
 my %Args;
 GetOptions(
+	'ignore:s'      => \($Args{ignore}),
+	'override:s'    => \($Args{override}),
 	'l|log-level:s' => \($Args{log_level} = 'progress'),
 	'm|mock'        => \($Args{mock}),
 	'o|out-dir:s'   => \($Args{out_dir}),
@@ -136,6 +141,16 @@ sub ConvertFile {
 		)
 	) ? 'copy' : 'mov_text';
 
+	my @ignores = map {('-map', "-0:$_")} split(/,/, $Args{ignore});
+
+	# Ignoring changes the output track numbers, so subtract ignore arguments
+	# from the stream numbers so callers don't need to care about that math.
+	my @overrides = map {
+		my ($stream, $format) = split(/=/, $_);
+		$stream -= (scalar(@ignores) / 2);
+		("-c:$stream", $format);
+	} split(/,/, $Args{override});
+
 	if (
 		$vidcodec eq 'copy' &&
 		$audcodec eq 'copy' &&
@@ -157,17 +172,26 @@ sub ConvertFile {
 		$output .= ".conv";
 	}
 
-	run3([
+	my $ffmpeg_params = [
 		'ffmpeg',
 		'-i', $input,
 		'-c:v', $vidcodec,
 		'-map', '0',
+		@ignores,
 		@ScaleArgs,
 		'-c:a', $audcodec,
 		'-c:s', $subcodec,
 		'-c:t', 'copy',
+		@overrides,
 		'-f', 'mp4', $output,
-	]) unless ($Args{mock});
+	];
+
+	if ($Args{mock}) {
+		use Data::Dumper;
+		print Dumper $ffmpeg_params;
+	} else {
+		run3($ffmpeg_params);
+	}
 }
 
 # Stream is something like 'v:0' or 'a:0'
