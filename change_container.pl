@@ -12,7 +12,7 @@ use Getopt::Long;
 use IPC::Run3 qw( run3 );
 use Pod::Usage qw( pod2usage );
 
-our $VERSION = '2.7';
+our $VERSION = '2.8';
 
 # TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
@@ -167,14 +167,27 @@ sub ConvertFile {
 		'ffmpeg',
 		@ffmpegArgs,
 		'-i', $path,
-		'-c:v', $vidcodec,
+
+		# Copy all streams by default. This applies to any stream not explicitly
+		# mentioned later in the command.
 		'-map', '0',
-		@ignoreTracks,
+		'-c', 'copy',
+
+		# Apply arguments to the first video stream.
+		'-c:v:0', $vidcodec,
+		'-filter:v:0', 'format=yuv420p',
 		@videoArgs,
-		'-c:a', $audcodec,
-		'-c:s', $subcodec,
-		'-c:t', 'copy',
+
+		# Convert first audio and subtitle streams, if needed.
+		'-c:a:0', $audcodec,
+		'-c:s:0', $subcodec,
+
+		# Ignoring tracks changes output track IDs, so do this near last.
+		@ignoreTracks,
+
+		# Override track IDs take ignored tracks into account.
 		@overrideTracks,
+
 		'-f', 'mp4', $output,
 	];
 
@@ -239,7 +252,7 @@ and file size third.
 
 =item S<Container    MP4>
 
-=item S<Video        H.264>
+=item S<Video        H.264 (YUV planar color space, 4:2:0 chroma subsampling)>
 
 =item S<Audio        AAC>
 
@@ -264,6 +277,11 @@ that directory will be converted.
 
 =item - The output file has .conv appended to the name if it would otherwise
 overwrite the input file.
+
+=item - Many video players, particularly ones on mobile devices, do not support
+the full range of settings H.264 use. Through testing, we've determined using
+format C<yuv420p> ensures the highest compatibility across players.
+See L<https://trac.ffmpeg.org/wiki/Encode/H.264#Encodingfordumbplayers>.
 
 =back
 
