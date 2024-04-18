@@ -14,7 +14,6 @@ use Pod::Usage qw( pod2usage );
 
 our $VERSION = '2.8';
 
-# TODO actually implement log levels for ffmpeg subprocesses
 # TODO actually implement progress
 # TODO ctrl+c handler (currently subshells eat it)
 # TODO How do we handle 5.1 surround sound stuff?
@@ -34,15 +33,16 @@ use constant LOG_LEVELS => {
 
 my %Args;
 GetOptions(
-	'a|h264-args:s' => \($Args{h264_args}),
-	'e|override:s'  => \($Args{override}),
-	'i|ignore:s'    => \($Args{ignore}),
-	'l|log-level:s' => \($Args{log_level} = 'info'),
-	'm|mock'        => \($Args{mock}),
-	'o|out-dir:s'   => \($Args{out_dir}),
-	's|scale:s'     => \($Args{scale}),
-	'v|version'     => sub { say("Version $VERSION"); exit(0); },
-	'h|help'        => sub {
+	'a|h264-args:s'   => \($Args{h264_args}),
+	'e|override:s'    => \($Args{override}),
+	'f|ffmpeg-args:s' => \($Args{ffmpeg_args}),
+	'i|ignore:s'      => \($Args{ignore}),
+	'l|log-level:s'   => \($Args{log_level} = 'info'),
+	'm|mock'          => \($Args{mock}),
+	'o|out-dir:s'     => \($Args{out_dir}),
+	's|scale:s'       => \($Args{scale}),
+	'v|version'       => sub { say("Version $VERSION"); exit(0); },
+	'h|help'          => sub {
 		pod2usage({
 			-exitval => 0,
 			-verbose => 99,
@@ -78,6 +78,10 @@ if ($logLevel == LOG_LEVELS->{info}) {
 	push(@ffmpegArgs, '-loglevel', 'fatal');
 }
 
+if (defined($Args{ffmpeg_args})) {
+	push(@ffmpegArgs, split(/\s+/, $Args{ffmpeg_args}));
+}
+
 my @videoArgs;
 if ($Args{scale}) {
 	my ($height) = ($Args{scale} =~ /(\d+)[pP]/);
@@ -89,7 +93,7 @@ if ($Args{scale}) {
 	@videoArgs = ('-filter:v', qq(scale=-1:$height));
 }
 if (defined($Args{h264_args})) {
-	push (@videoArgs, split(/\s+/, $Args{h264_args}));
+	push(@videoArgs, split(/\s+/, $Args{h264_args}));
 }
 
 my @ignoreTracks =
@@ -174,6 +178,7 @@ sub ConvertFile {
 		'-c', 'copy',
 
 		# Apply arguments to the first video stream.
+		# TODO does this still skip, if needed?
 		'-c:v:0', $vidcodec,
 		'-filter:v:0', 'format=yuv420p',
 		@videoArgs,
@@ -292,6 +297,7 @@ See L<https://trac.ffmpeg.org/wiki/Encode/H.264#Encodingfordumbplayers>.
 =item B<-a --h264-args>
 
 Additional H.264 arguments. Remember to use quotes, if necessary.
+When possible, use C<-preset veryslow> to get the best file sizes.
 
 Example: C<--h264-args="-crf 28 -tune grain -preset slow">
 
@@ -301,7 +307,14 @@ See L<https://trac.ffmpeg.org/wiki/Encode/H.264>
 
 Format: <track_id_1>=<format_1>[,<track_id_2>=<format_2>,...]
 
-Example: 1=h264,4=copy
+Example: C<1=h264,4=copy>
+
+=item B<-f --ffmpeg-args>
+
+Additional front-loaded ffmpeg args. Remember to use quotes, if necessary.
+This is useful for things like C<-ss X> to trim the first X seconds of a video.
+
+Example: C<--ffmpeg-args="-ss 5">
 
 =item B<-i --ignore>S<    Don't include the given tracks in the output file.>
 
