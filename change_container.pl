@@ -22,6 +22,10 @@ our $VERSION = '2.8';
 # TODO Check return code from run3 so if ffmpeg fails, we don't exit
 # successfully
 # TODO embed srt files into converted media
+# TODO Delete stub file if we fail a conversion (leaves 0byte file behind)
+# TODO running without input should print help and exit
+# TODO recursively work out what files to work with (aka let me glob
+# directories of directories). Alternately, find exists.
 
 use constant LOG_LEVELS => {
 	none => 0,
