@@ -66,6 +66,9 @@ for my $pair (pairs(@sub_files)) {
 	my ($lang, $file) = @$pair;
 	my $codec = GetSubCodec($file);
 
+	# ffmpeg gets upset if we don't tell it about non-UTF-8 subtitle files.
+	my $encoding = GetEncoding($file);
+
 	unless ($codec) {
 		say(STDERR "Error: Cannot determine codec for $file");
 		exit(1);
@@ -74,7 +77,10 @@ for my $pair (pairs(@sub_files)) {
 	say("Sub $track: [$lang] -> \"$file\"");
 
 	# NOTE metadata index offset by one for languages to line up properly
-	push(@sub_input_args, '-i', $file);
+	push(@sub_input_args,
+		'-sub_charenc', $encoding,
+		'-i', $file,
+	);
 	push(@sub_map_args,   '-map', "$track");
 	push(@sub_meta_args,  "-metadata:s:s:@{[$track - 1]}", "language=$lang");
 
@@ -116,6 +122,21 @@ sub GetSubCodec {
 		'stream=codec_name',
 		'-of',
 		'default=noprint_wrappers=1:nokey=1',
+		$path,
+	], \undef, \(my $out), \undef);
+
+	chomp($out);
+	return $out;
+}
+
+# Gets the text encoding for text-based subtitles.
+sub GetEncoding {
+	my ($path) = @_;
+
+	run3([
+		'file',
+		'--brief',
+		'--mime-encoding',
 		$path,
 	], \undef, \(my $out), \undef);
 
