@@ -20,6 +20,7 @@ our $VERSION = '1.1';
 
 my %Args;
 GetOptions(
+	'm|mock'       => \($Args{mock}),
 	't|sub-type:s' => \($Args{sub_type} = 'copy'),
 	'v|version'    => sub { say("Version $VERSION"); exit(0); },
 	'h|help'       => sub {
@@ -82,7 +83,7 @@ for my $pair (pairs(@sub_files)) {
 
 # Now convert / merge all subtitles into the video file.
 # Adapted from https://stackoverflow.com/a/65587372/7954860
-run3([
+my $ffmpeg_params = [
 	'ffmpeg',
 	'-i', $video_file,
 	@sub_input_args,
@@ -92,7 +93,13 @@ run3([
 	'-c:s', $Args{sub_type},
 	@sub_meta_args,
 	"merged.$video_file",
-]);
+];
+
+if ($Args{mock}) {
+	say(Dumper($ffmpeg_params));
+} else {
+	run3($ffmpeg_params);
+}
 
 # Gets info about the subtitle file.
 # NOTE this is essentially GetCodec from change_container.pl
@@ -137,6 +144,8 @@ L<https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes>
 =head1 OPTIONS
 
 =over
+
+=item B<-m --mock>S<       Output operations without actually doing anything>
 
 =item B<-t --sub-types>S<  Attempt to convert subtitles to this format.>
 
