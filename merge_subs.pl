@@ -92,6 +92,8 @@ my $ffmpeg_params = [
 	'-c', 'copy',
 	'-c:s', $Args{sub_type},
 	@sub_meta_args,
+	'-movflags', 'use_metadata_tags',
+	'-map_metadata', '0',
 	"merged.$video_file",
 ];
 
