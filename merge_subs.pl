@@ -4,9 +4,11 @@ use warnings;
 
 use feature 'say';
 
+use Data::Dumper;
 use English;
 use File::Basename qw( fileparse );
 use Getopt::Long qw( GetOptions );
+use List::Util qw( pairs );
 use IPC::Run3 qw( run3 );
 use Pod::Usage qw( pod2usage );
 
@@ -31,39 +33,51 @@ GetOptions(
 
 # Remaining args after GetOptions are media and subtitle files
 my $video_file = shift(@ARGV);
-my %sub_file_map = @ARGV;
+
+# We want to preserve the given CLI arg order in the video track list,
+# so sadly we can't just read this value in as a hash.
+my @sub_files = @ARGV;
 
 unless ($video_file) {
 	say(STDERR 'Error: Must specify a media file!');
 	exit(1);
 }
 
-unless (%sub_file_map) {
+if (scalar(@sub_files) == 0) {
 	say(STDERR 'Error: Must specify at least one language=subtitle_file pair!');
 	exit(1);
 }
 
-# Verify these are actual subtitle files
-my $index = 1; # TODO may need to detect this index based on sub tracks already present
+unless (scalar(@sub_files) % 2 == 0) {
+	say(STDERR 'Error: mismatched language codes and sub files!');
+	say(Dumper(\@sub_files));
+	exit(1);
+}
+
+# Verify these are actual subtitle files, and build arg lists.
+# At this point we know we have an even, non-zero number of items in @sub_files.
 my @sub_input_args;
 my @sub_map_args;
 my @sub_meta_args;
-for my $lang_code (keys(%sub_file_map)) {
-	my $file = $sub_file_map{$lang_code};
+
+my $track = 1; # TODO may need to detect this index based on sub tracks already present
+for my $pair (pairs(@sub_files)) {
+	my ($lang, $file) = @$pair;
 	my $codec = GetSubCodec($file);
 
 	unless ($codec) {
-		print(STDERR "Cannot determine codec for $file\n");
+		say(STDERR "Error: Cannot determine codec for $file");
 		exit(1);
 	}
-	print("Lang: $lang_code, file: $file\n");
+
+	say("Sub $track: [$lang] -> \"$file\"");
 
 	# NOTE metadata index offset by one for languages to line up properly
 	push(@sub_input_args, '-i', $file);
-	push(@sub_map_args,   '-map', $index);
-	push(@sub_meta_args,  "-metadata:s:s:@{[$index - 1]}", "language=$lang_code");
+	push(@sub_map_args,   '-map', "$track");
+	push(@sub_meta_args,  "-metadata:s:s:@{[$track - 1]}", "language=$lang");
 
-	$index++;
+	$track++;
 }
 
 # Now convert / merge all subtitles into the video file.
@@ -117,7 +131,7 @@ Subtitles are embedded as-is, with no conversion applied. Not all containers
 (mp4, mkv, etc...) accept all subtitle formats (dvd_subtitle, ass, etc...).
 
 Subtitle files are provided as C<language_code subtitle_file> pairs.
-C<language_code> should be an ISO-649-1 code
+C<language_code> should be an ISO-649-1 code (use C<Set 3>)
 L<https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes>
 
 =head1 OPTIONS
