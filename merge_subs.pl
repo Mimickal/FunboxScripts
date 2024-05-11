@@ -1,53 +1,46 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-no warnings 'uninitialized';
 
+use feature 'say';
+
+use English;
 use File::Basename qw( fileparse );
 use Getopt::Long qw( GetOptions );
 use IPC::Run3 qw( run3 );
+use Pod::Usage qw( pod2usage );
 
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
 # TODO We probably want a shared module for doing video things, like GetCodec
-# TODO also do something fun for Usage
 # TODO how do we handle files that already have streams? Should we add an option
 # for appending?
-
-use constant INFO => qq{
-Embeds one or more subtitle files into an MP4 file, as a subtitle stream.
-Subtitles are embedded as-is, with no conversion applied. Not all containers
-(mp4, mkv, etc...) accept all subtitle formats (dvd_subtitle, ass, etc...).
-
-Subtitle files are provided as "language_code subtitle_file" pairs.
-"language_code" should be an ISO-649-1 code
-https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
-};
-
-use constant OPTIONS => qq{
-Options:
-  -t --sub-types  Attempt to convert subtitles to this format. Default: 'copy'
-  -h --help       Outputs this help text.
-  -v --version    Output script version.
-};
 
 my %Args;
 GetOptions(
 	't|sub-type:s' => \($Args{sub_type} = 'copy'),
-	'v|version'    => sub { print("Version $VERSION\n"); exit(0); },
-	'h|help|'      => sub { Usage(); },
-) or die Usage($!);
+	'v|version'    => sub { say("Version $VERSION"); exit(0); },
+	'h|help'       => sub {
+		pod2usage({
+			-exitval  => 0,
+			-verbose  => 99,
+			-sections => [qw( DESCRIPTION SYNOPSIS OPTIONS )],
+		});
+	},
+) or pod2usage({ -exitval => $ERRNO });
 
 # Remaining args after GetOptions are media and subtitle files
 my $video_file = shift(@ARGV);
 my %sub_file_map = @ARGV;
 
 unless ($video_file) {
-	Usage('Must specify a media file!');
+	say(STDERR 'Error: Must specify a media file!');
+	exit(1);
 }
 
 unless (%sub_file_map) {
-	Usage('Must specify at least one language=subtitle_file pair!');
+	say(STDERR 'Error: Must specify at least one language=subtitle_file pair!');
+	exit(1);
 }
 
 # Verify these are actual subtitle files
@@ -107,20 +100,39 @@ sub GetSubCodec {
 	return $out;
 }
 
-# Prints script usage information, with an optional message, then exits.
-sub Usage {
-	my ($msg) = @_;
-	my ($scriptname) = fileparse($0);
+=pod
 
-	my $output = "$msg\n\n";
-	$output .= "Usage:\n";
-	$output .= "    $scriptname path/to/media lang subfile [lang subfile] \n";
-	$output .= OPTIONS;
-	$output .= INFO;
+=head1 NAME
 
-	print($output);
+merge_subs - Merges subtitle files into a video file.
 
-	# Exit with status code 1 if $msg is provided
-	exit(!!$msg);
-}
+=head1 SYNOPSIS
+
+merge_subs <media_file> <lang> <sub_file> [lang2 sub_file2 lang3 sub_file3 ...]
+
+=head1 DESCRIPTION
+
+Embeds one or more subtitle files into an video file, as a subtitle stream.
+Subtitles are embedded as-is, with no conversion applied. Not all containers
+(mp4, mkv, etc...) accept all subtitle formats (dvd_subtitle, ass, etc...).
+
+Subtitle files are provided as C<language_code subtitle_file> pairs.
+C<language_code> should be an ISO-649-1 code
+L<https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes>
+
+=head1 OPTIONS
+
+=over
+
+=item B<-t --sub-types>S<  Attempt to convert subtitles to this format.>
+
+=item B<-h --help>S<       Output this help text and exit.>
+
+=item B<-v --version>S<    Output script version and exit.>
+
+=head1 LICENSE
+
+GPL-3.0
+
+=cut
 
