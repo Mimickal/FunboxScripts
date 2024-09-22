@@ -4,4 +4,6 @@ VERSION='1.0'
 echo
 echo "Current public IP: $(print-ip-info)"
 echo
+echo $(deluge-status)
+echo
 
