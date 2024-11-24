@@ -5,7 +5,7 @@ no warnings 'uninitialized';
 
 use feature 'say';
 
-our $VERSION = '1.3';
+our $VERSION = '1.4';
 
 use Getopt::Long qw( GetOptions );
 use English;
@@ -22,6 +22,7 @@ use constant CONNECTED => 'connected';
 my %Args;
 GetOptions(
 	'i|interval:i' => \($Args{interval} = DEFAULT_INTERVAL),
+	'p|proto:s'    => \($Args{proto} = 'tcp'),
 	'v|version'    => sub { say("Version $VERSION"); exit(0); },
 	'h|help'       => sub {
 		pod2usage({
@@ -36,7 +37,7 @@ $Args{destination} = $ARGV[0];
 pod2usage({ -exitval => 1 }) unless ($Args{destination});
 
 my $ping = Net::Ping->new({
-	proto => 'tcp',
+	proto => $Args{proto},
 	port => scalar(getservbyname('https', 'tcp')),
 	timeout => $Args{interval},
 }) or die 'Failed to create Net::Ping';
@@ -117,6 +118,12 @@ I<clearly fucking isn't>.
 =item B<-i --interval>S<    How often to check the destination.>
 
 (Seconds, Default = 10)
+
+=item B<-p --proto>S<       The ping protocol to use.>
+
+Supports any protocol supported by
+L<C<Net::Ping>|https://perldoc.perl.org/Net::Ping>.
+(Default = tcp)
 
 =item B<-h --help>S<        Output this help text and exit.>
 
