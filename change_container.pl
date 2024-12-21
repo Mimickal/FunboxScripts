@@ -12,7 +12,7 @@ use Getopt::Long;
 use IPC::Run3 qw( run3 );
 use Pod::Usage qw( pod2usage );
 
-our $VERSION = '2.8';
+our $VERSION = '2.9';
 
 # TODO actually implement progress
 # TODO ctrl+c handler (currently subshells eat it)
@@ -93,8 +93,8 @@ if ($Args{scale}) {
 		Error("Invalid scale value [$Args{scale}]");
 	}
 
-	# Using -1 makes ffmpeg calculate width based on height and aspect ratio
-	@videoArgs = ('-filter:v', qq(scale=-1:$height));
+	# Make ffmpeg calculate height, but enforce an even value for h264.
+	@videoArgs = ('-filter:v', qq(scale=width='trunc(ih*dar/2)*2':height=$height));
 }
 if (defined($Args{h264_args})) {
 	push(@videoArgs, split(/\s+/, $Args{h264_args}));
