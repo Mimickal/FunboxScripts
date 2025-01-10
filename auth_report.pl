@@ -3,28 +3,13 @@ use strict;
 use warnings;
 no warnings 'uninitialized';
 
+use feature 'say';
+
+our $VERSION = '1.1';
+
 use English;
-use File::Basename qw( fileparse );
 use Getopt::Long qw( GetOptions );
-
-our $VERSION = '1.0';
-my $scriptname;
-BEGIN {
-	($scriptname) = fileparse($PROGRAM_NAME);
-}
-
-use constant INFO => qq(Summarizes info from auth.log\n);
-use constant USAGE => qq(
-Usage:
-	$scriptname
-	$scriptname auth.log auth.log.1
-	cat some.log | $scriptname --stdin
-
-Options:
-  -i --stdin    Read input from stdin.
-  -h --help     Outputs this help text and exits.
-  -v --version  Outputs script version and exits.
-);
+use Pod::Usage qw( pod2usage );
 
 use constant DEFAULT_AUTH_FILE => '/var/log/auth.log';
 
@@ -35,9 +20,15 @@ use constant DEFAULT_AUTH_FILE => '/var/log/auth.log';
 my %Args;
 GetOptions(
 	'i|stdin'   => \$Args{stdin},
-	'h|help'    => sub { Usage() },
-	'v|version' => sub { print("Version $VERSION\n"); exit(0); },
-) or die Usage($OS_ERROR);
+	'v|version' => sub { say("Version $VERSION"); exit(0); },
+	'h|help'    => sub {
+		pod2usage({
+			-exitval  => 0,
+			-verbose  => 99,
+			-sections => [qw( NAME SYNOPSIS OPTIONS )],
+		});
+	},
+) or pod2usage({ -exitval => $ERRNO });
 
 # Each service outputs slightly different lines, so we define separate
 # extractors for each of them.
@@ -61,10 +52,10 @@ if (scalar @ARGV > 0) {
 	ProcessFile(DEFAULT_AUTH_FILE);
 }
 
-print("Successful logins:\n");
+say('Successful logins:');
 PrintUserHash(\%success);
 print("\n");
-print("Failed logins:\n");
+say('Failed logins:');
 PrintUserHash(\%failure);
 
 sub PrintUserHash {
@@ -72,12 +63,12 @@ sub PrintUserHash {
 	for my $user_name (sort keys %$hash) {
 		my $user_hash = $hash->{$user_name};
 
-		print("\t$user_name\n");
+		say("\t$user_name");
 
 		for my $ip (sort keys %{$user_hash->{IPS}}) {
 			my $count = $user_hash->{IPS}->{$ip};
 
-			print("\t\t$ip\t($count)\n");
+			say("\t\t$ip\t($count)");
 		}
 	}
 }
@@ -85,7 +76,7 @@ sub PrintUserHash {
 
 sub ProcessFile {
 	my ($file) = @_;
-	open(my $handle, '<', $file) or die "Cannot open $file\n";
+	open(my $handle, '<', $file) or die("Cannot open $file\n");
 	while (my $line = <$handle>) {
 		ProcessLine($line);
 	}
@@ -151,14 +142,35 @@ sub ExtractSshd {
 	return $extracted;
 }
 
-sub Usage {
-	my ($msg) = @_;
+=pod
 
-	my $output = $msg ? "$msg\n\n" : "\n";
-	$output .= INFO;
-	$output .= USAGE;
+=head1 NAME
 
-	print($output);
-	exit(!!$msg); # Assume a given message means some error occurred.
-}
+auth_report - Summarizes info from auth.log
+
+=head1 SYNOPSIS
+
+auth_report
+
+auth_report auth.log auth.log.1
+
+cat some.log | auth_report --stdin
+
+=head1 OPTIONS
+
+=over
+
+=item B<-i --stdin>S<   Read input from stdin.>
+
+=item B<-h --help>S<    Outputs this help text and exits.>
+
+=item B<-v --version>S< Outputs script version and exits.>
+
+=back
+
+=head1 LICENSE
+
+GPL-3.0
+
+=cut
 
