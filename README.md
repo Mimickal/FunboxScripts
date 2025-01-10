@@ -40,6 +40,10 @@ Updates dynamic DNS from `freedns.afraid.org`. This is useful if you have a cron
 job for DNS updates from your server, and want to, say, only get emails if your
 IP actually changes.
 
+### `freefilesync_install.sh`
+
+Installs (or updates) FreeFileSync from the command line.
+
 ### `fuzzies.sh`
 
 Defines several Bash functions that use `fzf` for an interactive UI.
@@ -69,6 +73,16 @@ fine.
 Prints your public IP. This is useful as a login script if you expect the target
 system to be on a VPN.
 
+### `setup_lottie.sh`
+
+Sets up a seedbox that uses Deluge and NordVPN. Probably not useful for most
+people, but it's generic enough that it might be.
+
+### `setup_win.sh`
+
+Sets up a GPD Win device with SSH keys and several emulators via flatpak.
+Not technically a Funbox script, but close enough.
+
 ### `smartctl_test_monitor.pl`
 
 Prints the status of disk SMART tests being run by `smartctl`. Combine with
@@ -83,6 +97,10 @@ useful for non-English language subtitles.
 
 Generates a Matrix Synapse admin login token. I don't know why this isn't built
 into `synctl`, but it's not, so I made it instead.
+
+### `unquote.py`
+
+Converts a URL-encoded string back into a non-URL-encoded string.
 
 ### `whoistheasshole.pl`
 
