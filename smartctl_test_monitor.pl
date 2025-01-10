@@ -3,39 +3,29 @@ use strict;
 use warnings;
 no warnings 'uninitialized';
 
+use feature 'say';
+
+our $VERSION = '1.2';
+
 use English;
 use Getopt::Long qw( GetOptions );
 use JSON::PP qw( decode_json );
 use List::Util qw( any first );
-
-our $VERSION = '1.1';
-
-use constant INFO => qq(Outputs smartctl test progress for selected drives.
-
-For fine-grained reporting, start your test like this:
-smartctl --test select,0-max
-
-NOTE: Disk tests can take a long time. If pairing this script with "watch", use
-      a reasonably long polling interval for the type of test you're watching.
-      (e.g. for a long test, you could poll every 10 minutes).
-);
-use constant OPTIONS => qq(
-Options:
-  -b --bar      Display progress bar in addition to percent. Useful in
-                combination with "watch".
-  -d --disks    Comma-separated list of disks to get test progress for.
-                If not provided, checks all disks.
-  -h --help     Outputs this help text and exits.
-  -v --version  Outputs script version and exits.
-);
+use Pod::Usage qw( pod2usage );
 
 my %Args;
 GetOptions(
 	'b|bar'     => \($Args{bar}),
 	'd|disks:s' => \($Args{disks}),
-	'h|help'    => sub { usage() },
-	'v|version' => sub { print("Version $VERSION\n"); exit(0); },
-) or die usage($OS_ERROR);
+	'v|version' => sub { say("Version $VERSION"); exit(0); },
+	'h|help'    => sub {
+		pod2usage({
+			-exitval  => 0,
+			-verbose  => 99,
+			-sections => [qw( DESCRIPTION SYNOPSIS OPTIONS )],
+		});
+	},
+) or pod2usage({ -exitval => $ERRNO });
 
 # Verify we have smartctl installed. It's not a default package on some distros.
 qx(smartctl --version);
@@ -146,12 +136,50 @@ sub getTestProgress {
 	return undef;
 }
 
-sub usage {
-	my ($msg) = @_;
-	my $output = $msg ? "$msg\n\n" : "\n";
-	$output .= INFO;
-	$output .= OPTIONS;
+=pod
 
-	print ($output);
-	exit(!!$msg); # Assume a given message means some error occurred.
-}
+=head1 NAME
+
+smartctl_test_monitor - Outputs smartctl test progress.
+
+=head1 SYNOPSIS
+
+sudo smartctl_test_monitor
+
+sudo watch -n 60 smartctl_test_monitor --bar
+
+=head1 DESCRIPTION
+
+Outputs smartctl test progress for selected drives.
+
+For fine-grained reporting, start your test like this:
+C<smartctl --test select,0-max>
+
+NOTE: Disk tests can take a long time. If pairing this script with C<watch>, use
+a reasonably long polling interval for the type of test you're watching.
+(e.g. for a long test, you could poll every 10 minutes using C<--interval 600>).
+
+=head1 OPTIONS
+
+=over
+
+=item B<-b --bar>S<     Display progress bar in addition to percent.>
+
+Useful in combination with C<watch>.
+
+=item B<-d --disks>S<   Comma-separated list of disks to get test progress for.>
+
+If not provided, checks all disks.
+
+=item B<-h --help>S<    Outputs this help text and exits.>
+
+=item B<-v --version>S< Outputs script version and exits.>
+
+=back
+
+=head1 LICENSE
+
+GPL-3.0
+
+=cut
+
