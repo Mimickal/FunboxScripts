@@ -3,11 +3,15 @@
 # for our variety of nonsense to work.
 # Would Docker be better? Yes. Will we use it? No.
 
-# Version 1.0
+# Version 1.1
 
 # These are third-party Perl libraries our scripts depend on
 cpan install \
 	File::Find::Rule \
-	Getopt::Long     \
-	IPC::Run3
+	File::Slurp \
+	Getopt::Long \
+	HTML::Template \
+	List::UtilsBy \
+	IPC::Run3 \
+	Mojo::DOM
 
