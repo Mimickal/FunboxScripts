@@ -1,32 +1,36 @@
-#!/usr/bin/perl
-###########################################################
-# Better chown
-#
-# Recursively changes the owner, group, and permissions on
-# all of the sub-directories and files in the given directory.
-###########################################################
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
 no warnings 'uninitialized';
 
-our $VERSION = '1.0';
+use feature 'say';
 
+our $VERSION = '1.1';
+
+use English;
 use File::Find::Rule;
 use Getopt::Long;
+use Pod::Usage qw( pod2usage );
 
 my %Args;
 GetOptions(
-	'user:s'      => \($Args{user}),
-	'group:s'     => \($Args{group}),
-	'file-perm:s' => \($Args{fileperm}),
-	'dir-perm:s'  => \($Args{dirperm}),
-	'exclude:s'   => \($Args{exclude}),
-	'silent'      => \($Args{silent}),
-	'mock'        => \($Args{mock}),
-	'v|version'   => sub { print("Version $VERSION\n"); exit(0); },
-	'h|help'      => \&Usage,
-) or die $!;
+	'u|user:s'      => \($Args{user}),
+	'g|group:s'     => \($Args{group}),
+	'f|file-perm:s' => \($Args{fileperm}),
+	'd|dir-perm:s'  => \($Args{dirperm}),
+	'e|exclude:s'   => \($Args{exclude}),
+	's|silent'      => \($Args{silent}),
+	'm|mock'        => \($Args{mock}),
+	'v|version'     => sub { say("Version $VERSION"); exit(0); },
+	'h|help'        => sub {
+		pod2usage({
+			-exitval  => 0,
+			-verbose  => 99,
+			-sections => [qw( DESCRIPTION SYNOPSIS OPTIONS )],
+		});
+	},
+) or pod2usage({ -exitval => $ERRNO });
 
 if (!@ARGV) {
 	die "Error: no path provided\n";
@@ -45,7 +49,7 @@ if (
 	die "Nothing to do because no options specified. Exiting.\n";
 }
 
-if (!$Args{silent} && $> != 0) {
+if (!$Args{silent} && $REAL_USER_ID) {
 	warn "Not running as root. Script likely won't work.\n";
 }
 
@@ -80,28 +84,6 @@ if (scalar(@ARGV) == 1 && -f $ARGV[0]) {
 	print("Done.\n") if !$Args{silent};
 }
 
-
-sub Usage {
-print(qq(Usage: $0 [options] <parent path>
-
-Recursively change the owner, group, and permissions
-of files and directories under the given path.
-The path may also be provided as a glob.
-
-ex: $0 --user funbox --group curator --file-perm 0575 --dir-perm 0464 /home/funbox/
-
-  --user       User for files and directories.
-  --group      Group name for files and directories.
-  --file-perm  Permissions to apply to files (ex: 644).
-  --dir-perm   Permissions to apply to directories (ex: 755).
-  --exclude    A comma-separated list of files / sub-directories to exclude.
-  --silent     Don't output warning or info text.
-  --mock       Don't actually change anything. Just print matched files.
-  -h --help    Show this text.
-));
-exit(0);
-}
-
 sub ChangePerms {
 	my ($path, $perms) = @_;
 
@@ -119,4 +101,51 @@ sub ChangePerms {
 		chmod(oct($perms), $path);
 	}
 }
+
+=pod
+
+=head1 NAME
+
+better_chown - Recursive chown with better options.
+
+=head1 SYNOPSIS
+
+better_chown [options] <path_1> [path_2] ...
+
+better_chown --user funbox --group creator --file-perm 0464 --dir-perm 0575 /home/funbox
+
+=head1 DESCRIPTION
+
+Recursively change the owner, group, and permissions of files and directories
+under the given path. Multiple paths may be given (including globs).
+
+=head1 OPTIONS
+
+=over
+
+=item B<-u --user>S<      Make all files and directories owned by this user.>
+
+=item B<-g --group>S<     Make all files and directories owned by this group.>
+
+=item B<-f --file-perm>S< Permissions to apply to files (ex: 644).>
+
+=item B<-d --dir-perm>S<  Permissions to apply to directories (ex: 755).>
+
+=item B<-e --exclude>S<   Comma-separated list of files/directories to exclude.>
+
+=item B<-s --silent>S<    Don't output warning or info text.>
+
+=item B<-m --mock>S<      Don't actually change anything, just print matched files.>
+
+=item B<-h --help>S<      Output this help text and exit.>
+
+=item B<-v --version>S<   Output version and exit.>
+
+=back
+
+=head1 LICENSE
+
+GPL-3.0
+
+=cut
 
