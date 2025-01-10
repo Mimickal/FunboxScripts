@@ -112,7 +112,7 @@ If that sounds like too much work, you can manually download too.
 
 # License
 
-Copyright 2023 [Mimickal](https://github.com/Mimickal)<br/>
+Copyright 2018 [Mimickal](https://github.com/Mimickal)<br/>
 This code is licensed under the [GPL-3.0](./LICENSE.md) license.<br/>
 These are locally-run scripts, but don't be a dick. If they are useful to you
 and you add something, I'd like to integrate it back in for others.
