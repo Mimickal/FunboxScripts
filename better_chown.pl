@@ -22,7 +22,8 @@ GetOptions(
 	'e|exclude:s'   => \($Args{exclude}),
 	's|silent'      => \($Args{silent}),
 	'm|mock'        => \($Args{mock}),
-	'v|version'     => sub { say("Version $VERSION"); exit(0); },
+	'v|verbose'     => \($Args{verbose}),
+	'version'       => sub { say("Version $VERSION"); exit(0); },
 	'h|help'        => sub {
 		pod2usage({
 			-exitval  => 0,
@@ -32,12 +33,24 @@ GetOptions(
 	},
 ) or pod2usage({ -exitval => $ERRNO });
 
-if (!@ARGV) {
-	die "Error: no path provided\n";
+unless (@ARGV) {
+	die("Error: no path provided\n");
 }
 
-# Don't print warnings when outputting list of matched files
-$Args{silent} = 1 if $Args{mock};
+if ($Args{silent} && $Args{verbose}) {
+	warn("--silent and --verbose specified. Disabling both.\n");
+	$Args{silent} = 0;
+	$Args{verbose} = 0;
+}
+
+if ($Args{mock}) {
+	$Args{verbose} = 1;
+
+	if ($Args{silent}) {
+		warn("--silent and --mock specified. Disabling --silent\n");
+		$Args{silent} = 0;
+	}
+}
 
 if (
 	!$Args{mock} &&
@@ -46,11 +59,11 @@ if (
 	!$Args{dirperm} &&
 	!$Args{fileperm}
 ) {
-	die "Nothing to do because no options specified. Exiting.\n";
+	die("Nothing to do because no options specified. Exiting.\n");
 }
 
-if (!$Args{silent} && $REAL_USER_ID) {
-	warn "Not running as root. Script likely won't work.\n";
+if ($REAL_USER_ID && !$Args{silent}) {
+	warn("Not running as root. Script likely won't work.\n");
 }
 
 if (scalar(@ARGV) == 1 && -f $ARGV[0]) {
@@ -71,7 +84,7 @@ if (scalar(@ARGV) == 1 && -f $ARGV[0]) {
 	printf(
 		"Changing permissions for %d file(s) (ignoring %d)...\n",
 		scalar(@files), scalar(keys(%exclude))
-	) if !$Args{silent};
+	) unless ($Args{silent});
 
 	for my $path (@files) {
 		if (-f $path) {
@@ -81,16 +94,14 @@ if (scalar(@ARGV) == 1 && -f $ARGV[0]) {
 		}
 	}
 
-	print("Done.\n") if !$Args{silent};
+	say('Done.') unless ($Args{silent});
 }
 
 sub ChangePerms {
 	my ($path, $perms) = @_;
 
-	if ($Args{mock}) {
-		print("$path\n");
-		return;
-	}
+	say($path) if ($Args{verbose});
+	return if ($Args{mock});
 
 	# Don't change user / group value if they weren't specified
 	my $uid = (defined $Args{user}) ? getpwnam($Args{user}) : -1;
@@ -135,11 +146,13 @@ under the given path. Multiple paths may be given (including globs).
 
 =item B<-s --silent>S<    Don't output warning or info text.>
 
-=item B<-m --mock>S<      Don't actually change anything, just print matched files.>
+=item B<-m --mock>S<      Don't actually change anything. Implies --verbose.>
+
+=item B<-v --verbose>S<   Print all the changed files and directories.>
 
 =item B<-h --help>S<      Output this help text and exit.>
 
-=item B<-v --version>S<   Output version and exit.>
+=item B<--version>S<      Output version and exit.>
 
 =back
 
